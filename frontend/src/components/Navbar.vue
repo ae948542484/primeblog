@@ -1,6 +1,6 @@
 <script setup>
 import { useRoute, useRouter } from 'vue-router'
-import { ref, reactive, computed } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -9,21 +9,42 @@ const navItems = [
   { label: 'ME', href: '/#me' },
   { label: 'Information', href: '/#info' },
   { label: 'Interests', href: '/#interests' },
-  { label: 'Friends', href: '/#friends' },
+  { label: 'Blog', href: '/blog' },
   { label: 'Archive', href: '/archive' },
   { label: 'Messages', href: '/messages' }
 ]
 
-const loginModal = ref(false)
 const mobileMenuOpen = ref(false)
-const loginForm = reactive({
-  username: '',
-  password: ''
+const isLogoutLoading = ref(false)
+
+const isLoggedIn = computed(() => {
+  const adminToken = localStorage.getItem('admin_token')
+  return !!adminToken
 })
 
-// 检查是否已登录
-const isLoggedIn = computed(() => {
-  return localStorage.getItem('isLoggedIn') === 'true'
+const currentUser = computed(() => {
+  const userData = localStorage.getItem('admin_user')
+  return userData ? JSON.parse(userData) : null
+})
+
+onMounted(async () => {
+  const adminToken = localStorage.getItem('admin_token')
+  if (adminToken) {
+    try {
+      const response = await fetch('/api/auth/verify', {
+        headers: {
+          'Authorization': `Bearer ${adminToken}`
+        }
+      })
+      
+      if (!response.ok) {
+        localStorage.removeItem('admin_token')
+        localStorage.removeItem('admin_user')
+      }
+    } catch (error) {
+      console.error('令牌验证失败:', error)
+    }
+  }
 })
 
 const isActive = (href) => {
@@ -33,67 +54,79 @@ const isActive = (href) => {
   if (href === '/archive') {
     return route.path === '/archive' || route.path === '/create'
   }
+  if (href === '/blog') {
+    return route.path === '/blog'
+  }
   return route.path === '/' && href.startsWith('/#')
 }
 
-const login = () => {
-  if (loginForm.username === 'admin' && loginForm.password === '123456') {
-    localStorage.setItem('isLoggedIn', 'true')
-    loginModal.value = false
-    loginForm.username = ''
-    loginForm.password = ''
-    alert('登录成功！欢迎回来！😊')
-  } else {
-    alert('用户名或密码错误！\n用户名: admin\n密码: 123456')
+const showLoginButton = computed(() => {
+  const publicPages = ['/', '/about', '/blog', '/archive', '/messages', '/mylife', '/obsidian', '/links']
+  return publicPages.includes(route.path)
+})
+
+const logout = async () => {
+  if (isLogoutLoading.value) return
+  
+  isLogoutLoading.value = true
+  
+  const adminToken = localStorage.getItem('admin_token')
+  
+  try {
+    if (adminToken) {
+      await fetch('/api/auth/logout', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${adminToken}`
+        }
+      })
+    }
+  } catch (error) {
+    console.error('登出错误:', error)
+  } finally {
+    localStorage.removeItem('admin_token')
+    localStorage.removeItem('admin_user')
+    
+    if (route.path.startsWith('/admin')) {
+      await router.push('/')
+    } else {
+      await router.push('/')
+    }
+    
+    isLogoutLoading.value = false
   }
 }
 
-const logout = () => {
-  localStorage.removeItem('isLoggedIn')
-  alert('已退出登录')
-  window.location.reload()
-}
-
-const closeLoginModal = () => {
-  loginModal.value = false
-  loginForm.username = ''
-  loginForm.password = ''
+const goLogin = () => {
+  router.push('/login')
 }
 
 const scrollToSection = (href) => {
   mobileMenuOpen.value = false
   
   if (href.startsWith('/#')) {
-    // 触发全局事件，通知 Home.vue 隐藏欢迎页面
-    window.dispatchEvent(new CustomEvent('navbarClick', { detail: { href } }))
-    
-    // 尝试隐藏欢迎页面（如果存在）
-    const welcomeSection = document.querySelector('.welcome-section') || document.querySelector('.fixed.inset-0.z-50')
+    const welcomeSection = document.querySelector('.fixed.inset-0.z-50')
     if (welcomeSection) {
       welcomeSection.style.display = 'none'
     }
     
     const sectionId = href.replace('/#', '')
     
-    const scrollToElement = () => {
-      setTimeout(() => {
-        const element = document.getElementById(sectionId) 
-        if (element) {
-          // 滚动到目标元素，考虑导航栏高度
-          const elementPosition = element.offsetTop - 70
-          window.scrollTo({
-            top: elementPosition,
-            behavior: 'smooth'
-          })
-        }
-      }, 100)
-    }
-    
     if (route.path === '/') {
-      scrollToElement()
+      setTimeout(() => {
+        const element = document.getElementById(sectionId) || document.querySelector(`[id="${sectionId}"]`)
+        if (element) {
+          element.scrollIntoView({ behavior: 'smooth', block: 'start' })
+        }
+      }, 50)
     } else {
       router.push('/').then(() => {
-        setTimeout(scrollToElement, 150)
+        setTimeout(() => {
+          const element = document.getElementById(sectionId) || document.querySelector(`[id="${sectionId}"]`)
+          if (element) {
+            element.scrollIntoView({ behavior: 'smooth', block: 'start' })
+          }
+        }, 150)
       })
     }
   } else {
@@ -145,13 +178,18 @@ const toggleMobileMenu = () => {
           <button 
             v-if="isLoggedIn" 
             @click="logout" 
-            class="px-4 py-2 text-sm font-medium text-slate-600 hover:text-red-500 transition-colors duration-300"
+            :disabled="isLogoutLoading"
+            class="px-4 py-2 text-sm font-medium text-slate-600 hover:text-red-500 transition-colors duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
           >
-            退出登录
+            <svg v-if="isLogoutLoading" class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            {{ isLogoutLoading ? '退出中...' : '退出登录' }}
           </button>
           <button 
-            v-else 
-            @click="loginModal = true" 
+            v-else-if="showLoginButton" 
+            @click="goLogin" 
             class="px-5 py-2.5 bg-gradient-to-r from-slate-700 to-slate-800 text-white text-sm font-medium rounded-full shadow-sm hover:shadow-md hover:from-slate-800 hover:to-slate-900 transition-all duration-300"
           >
             登录
@@ -209,53 +247,22 @@ const toggleMobileMenu = () => {
           <button 
             v-if="isLoggedIn" 
             @click="logout" 
-            class="w-full px-4 py-3 text-sm font-medium text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+            :disabled="isLogoutLoading"
+            class="w-full px-4 py-3 text-sm font-medium text-red-500 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
           >
-            退出登录
+            <svg v-if="isLogoutLoading" class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            {{ isLogoutLoading ? '退出中...' : '退出登录' }}
           </button>
           <button 
-            v-else 
-            @click="loginModal = true" 
+            v-else-if="showLoginButton" 
+            @click="goLogin" 
             class="w-full px-4 py-3 bg-gradient-to-r from-slate-700 to-slate-800 text-white text-sm font-medium rounded-lg shadow-sm"
           >
             登录
           </button>
-        </div>
-      </div>
-    </div>
-
-    <!-- 登录模态框 -->
-    <div v-if="loginModal" class="fixed inset-0 bg-black/60 flex items-center justify-center z-50" @click="closeLoginModal">
-      <div class="bg-white rounded-2xl p-8 max-w-md w-full mx-4 shadow-2xl relative" @click.stop>
-        <button @click="closeLoginModal" class="absolute top-4 right-4 w-8 h-8 rounded-full hover:bg-gray-100 flex items-center justify-center transition-colors">
-          <svg class="w-5 h-5 text-gray-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M18 6L6 18M6 6l12 12"/>
-          </svg>
-        </button>
-        <div class="text-center mb-6">
-          <div class="w-16 h-16 mx-auto bg-gradient-to-br from-blue-400 to-purple-500 rounded-full flex items-center justify-center mb-4">
-            <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
-            </svg>
-          </div>
-          <h3 class="text-xl font-bold text-gray-800">管理员登录</h3>
-          <p class="text-gray-500 text-sm mt-2">请输入管理员账号密码</p>
-        </div>
-        <div class="space-y-4">
-          <div>
-            <label class="block text-gray-700 text-sm font-medium mb-2">用户名</label>
-            <input v-model="loginForm.username" type="text" placeholder="请输入用户名" class="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-blue-400 focus:outline-none transition-colors" />
-          </div>
-          <div>
-            <label class="block text-gray-700 text-sm font-medium mb-2">密码</label>
-            <input v-model="loginForm.password" type="password" placeholder="请输入密码" class="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-blue-400 focus:outline-none transition-colors" />
-          </div>
-          <button @click="login" class="w-full py-3 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-xl font-bold hover:from-blue-600 hover:to-purple-700 transition-all shadow-lg">
-            登录
-          </button>
-          <p class="text-center text-gray-400 text-xs mt-4">
-            测试账号：admin / 123456
-          </p>
         </div>
       </div>
     </div>

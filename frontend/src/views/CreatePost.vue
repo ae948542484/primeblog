@@ -1,5 +1,6 @@
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
+import axios from 'axios'
 
 const postForm = reactive({
   title: '',
@@ -8,14 +9,13 @@ const postForm = reactive({
 })
 
 const categories = ['生活', '技术', '旅行', '美食', '读书', '其他']
-const API_BASE = 'http://localhost:3001/api'
+const API_BASE = '/api'
 
-// 检查是否已登录
 const isLoggedIn = () => {
-  return localStorage.getItem('isLoggedIn') === 'true'
+  const token = localStorage.getItem('auth_token')
+  return !!token
 }
 
-// 页面加载时检查登录状态
 onMounted(() => {
   if (!isLoggedIn()) {
     alert('请先登录才能发布文章！')
@@ -24,7 +24,6 @@ onMounted(() => {
 })
 
 const submitPost = async () => {
-  // 提交前再次检查登录状态
   if (!isLoggedIn()) {
     alert('请先登录才能发布文章！')
     window.location.href = '/'
@@ -45,47 +44,28 @@ const submitPost = async () => {
   }
 
   try {
-    // 发送到后端 API
-    const response = await fetch(`${API_BASE}/posts`, {
-      method: 'POST',
+    const token = localStorage.getItem('auth_token')
+    const response = await axios.post(`${API_BASE}/posts`, {
+      title: postForm.title,
+      category: postForm.category,
+      content: postForm.content
+    }, {
       headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        title: postForm.title,
-        category: postForm.category,
-        content: postForm.content
-      })
+        'Authorization': `Bearer ${token}`
+      }
     })
 
-    if (response.ok) {
-      // 清空表单
+    if (response.data.success) {
       postForm.title = ''
       postForm.category = ''
       postForm.content = ''
       alert('文章发布成功！🎉')
     } else {
-      const error = await response.json()
-      alert('发布失败：' + error.error)
+      alert('发布失败：' + response.data.error)
     }
   } catch (error) {
     console.error('发布失败:', error)
-    // 如果后端不可用，使用 localStorage 作为备份
-    const posts = JSON.parse(localStorage.getItem('blogPosts') || '[]')
-    const newPost = {
-      id: Date.now(),
-      title: postForm.title,
-      category: postForm.category,
-      content: postForm.content,
-      created_at: new Date().toISOString()
-    }
-    posts.push(newPost)
-    localStorage.setItem('blogPosts', JSON.stringify(posts))
-    
-    postForm.title = ''
-    postForm.category = ''
-    postForm.content = ''
-    alert('文章发布成功！（已保存到本地）🎉')
+    alert('发布失败，请稍后重试')
   }
 }
 </script>

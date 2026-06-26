@@ -1,7 +1,6 @@
 <script setup>
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed } from 'vue'
 import ViewSwitch from '../components/ViewSwitch.vue'
-import PhotoFlip from '../components/PhotoFlip.vue'
 
 const aliceCoverImage = new URL('../assets/alice_cover.jpg', import.meta.url).href
 const currentPage = ref(0)
@@ -92,122 +91,6 @@ const books = ref([
   { id: 2, title: '书籍 2', image: new URL('../assets/book2.jpg', import.meta.url).href, progress: 100, status: 'completed' }
 ])
 
-// 照片数据（包含留言）
-const getDefaultPhotos = () => {
-  const stored = localStorage.getItem('photosData')
-  if (stored) {
-    return JSON.parse(stored)
-  }
-  return [
-    { id: 1, title: '照片 1', image: '../assets/photo1.jpg', message: '这是我最喜欢的一张照片！' },
-    { id: 2, title: '照片 2', image: '../assets/photo2.jpg', message: '美好的回忆' },
-    { id: 3, title: '照片 3', image: '../assets/photo3.jpg', message: '' },
-    { id: 4, title: '照片 4', image: '../assets/photo4.jpg', message: '阳光明媚的一天' },
-    { id: 5, title: '照片 5', image: '../assets/photo5.jpg', message: '' },
-    { id: 6, title: '照片 6', image: '../assets/photo6.jpg', message: '和朋友们在一起' },
-    { id: 7, title: '照片 7', image: '../assets/photo7.jpg', message: '' },
-    { id: 8, title: '照片 8', image: '../assets/photo8.jpg', message: '旅行的美好时光' },
-  ]
-}
-
-const photos = ref(getDefaultPhotos())
-
-// 更新照片留言
-const updatePhotoMessage = (photoId, message) => {
-  if (!isLoggedIn.value) {
-    alert('请先登录才能修改留言！')
-    return
-  }
-  const photo = photos.value.find(p => p.id === photoId)
-  if (photo) {
-    photo.message = message
-    localStorage.setItem('photosData', JSON.stringify(photos.value))
-    alert('留言已保存！')
-  }
-}
-
-// 访客记录功能
-const getDefaultVisitors = () => {
-  const stored = localStorage.getItem('visitorsData')
-  if (stored) {
-    return JSON.parse(stored)
-  }
-  return [
-    { id: 1, name: 'Alice', visitTime: '2024-01-15 10:30', isNew: false },
-    { id: 2, name: 'Bob', visitTime: '2024-01-14 15:20', isNew: false },
-    { id: 3, name: 'Charlie', visitTime: '2024-01-14 09:15', isNew: false },
-  ]
-}
-
-const visitors = ref(getDefaultVisitors())
-const showVisitorsModal = ref(false)
-
-// 生成访客ID（基于时间戳）
-const generateVisitorId = () => {
-  return Date.now()
-}
-
-// 记录新访客
-const recordVisitor = () => {
-  const visitorName = '访客' + Math.floor(Math.random() * 1000)
-  const now = new Date()
-  const visitTime = now.toLocaleString('zh-CN', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit'
-  })
-  
-  const newVisitor = {
-    id: generateVisitorId(),
-    name: visitorName,
-    visitTime: visitTime,
-    isNew: true
-  }
-  
-  visitors.value.unshift(newVisitor)
-  
-  if (visitors.value.length > 20) {
-    visitors.value = visitors.value.slice(0, 20)
-  }
-  
-  localStorage.setItem('visitorsData', JSON.stringify(visitors.value))
-}
-
-// 标记访客为已读
-const markVisitorsAsRead = () => {
-  visitors.value.forEach(v => v.isNew = false)
-  localStorage.setItem('visitorsData', JSON.stringify(visitors.value))
-}
-
-// 打开访客记录模态框
-const openVisitorsModal = () => {
-  if (!isLoggedIn.value) {
-    alert('请先登录查看访客记录！')
-    return
-  }
-  markVisitorsAsRead()
-  showVisitorsModal.value = true
-}
-
-const closeVisitorsModal = () => {
-  showVisitorsModal.value = false
-}
-
-// 获取未读访客数量
-const unreadVisitorCount = computed(() => {
-  return visitors.value.filter(v => v.isNew).length
-})
-
-// 页面加载时记录访客
-onMounted(() => {
-  if (!localStorage.getItem('hasVisited')) {
-    recordVisitor()
-    localStorage.setItem('hasVisited', 'true')
-  }
-})
-
 const updateBookProgress = (bookId, progress) => {
   if (!isLoggedIn.value) {
     alert('请先登录才能修改阅读进度！')
@@ -265,26 +148,6 @@ const closeFriendModal = () => {
 
 // 欢迎页状态
 const showWelcome = ref(true)
-
-// 监听导航栏点击事件
-const handleNavbarClick = (href) => {
-  if (href.startsWith('/#')) {
-    showWelcome.value = false
-  }
-}
-
-// 在组件挂载时添加全局监听
-onMounted(() => {
-  window.addEventListener('navbarClick', (e) => {
-    handleNavbarClick(e.detail.href)
-  })
-  
-  // 页面加载时记录访客
-  if (!localStorage.getItem('hasVisited')) {
-    recordVisitor()
-    localStorage.setItem('hasVisited', 'true')
-  }
-})
 
 const scrollToSky = () => {
   showWelcome.value = false
@@ -1068,23 +931,40 @@ const nextPage = () => {
                 </div>
                 
                 <div v-else class="h-full">
-                  <h4 class="text-2xl font-bold text-gray-800 mb-6 flex items-center gap-3">
-                    <span class="w-8 h-8 rounded-full bg-gradient-to-br from-pink-500 to-rose-500 flex items-center justify-center text-white text-sm font-bold">05</span>
-                    <span>Photo Gallery</span>
-                    <span class="text-sm text-gray-400 font-normal">点击照片翻转查看留言</span>
-                  </h4>
+                  <h4 class="text-2xl font-bold text-gray-800 mb-6">[05] Photo Gallery</h4>
                   <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <PhotoFlip
-                      v-for="photo in photos"
-                      :key="photo.id"
-                      :photo-id="photo.id"
-                      :image-src="photo.image"
-                      :image-title="photo.title"
-                      :message="photo.message"
-                      :is-logged-in="isLoggedIn"
-                      @update-message="updatePhotoMessage"
-                      @open-modal="openImageModal"
-                    />
+                    <div class="bg-white rounded-xl p-3 shadow-sm border border-pink-100 hover:shadow-md transition-shadow cursor-pointer" @click="openImageModal('../assets/photo1.jpg', '照片 1')">
+                      <img src="../assets/photo1.jpg" alt="Photo 1" class="w-full h-32 object-cover rounded-lg mb-2" />
+                      <p class="text-gray-700 text-sm font-medium text-center">照片 1</p>
+                    </div>
+                    <div class="bg-white rounded-xl p-3 shadow-sm border border-pink-100 hover:shadow-md transition-shadow cursor-pointer" @click="openImageModal('../assets/photo2.jpg', '照片 2')">
+                      <img src="../assets/photo2.jpg" alt="Photo 2" class="w-full h-32 object-cover rounded-lg mb-2" />
+                      <p class="text-gray-700 text-sm font-medium text-center">照片 2</p>
+                    </div>
+                    <div class="bg-white rounded-xl p-3 shadow-sm border border-pink-100 hover:shadow-md transition-shadow cursor-pointer" @click="openImageModal('../assets/photo3.jpg', '照片 3')">
+                      <img src="../assets/photo3.jpg" alt="Photo 3" class="w-full h-32 object-cover rounded-lg mb-2" />
+                      <p class="text-gray-700 text-sm font-medium text-center">照片 3</p>
+                    </div>
+                    <div class="bg-white rounded-xl p-3 shadow-sm border border-pink-100 hover:shadow-md transition-shadow cursor-pointer" @click="openImageModal('../assets/photo4.jpg', '照片 4')">
+                      <img src="../assets/photo4.jpg" alt="Photo 4" class="w-full h-32 object-cover rounded-lg mb-2" />
+                      <p class="text-gray-700 text-sm font-medium text-center">照片 4</p>
+                    </div>
+                    <div class="bg-white rounded-xl p-3 shadow-sm border border-pink-100 hover:shadow-md transition-shadow cursor-pointer" @click="openImageModal('../assets/photo5.jpg', '照片 5')">
+                      <img src="../assets/photo5.jpg" alt="Photo 5" class="w-full h-32 object-cover rounded-lg mb-2" />
+                      <p class="text-gray-700 text-sm font-medium text-center">照片 5</p>
+                    </div>
+                    <div class="bg-white rounded-xl p-3 shadow-sm border border-pink-100 hover:shadow-md transition-shadow cursor-pointer" @click="openImageModal('../assets/photo6.jpg', '照片 6')">
+                      <img src="../assets/photo6.jpg" alt="Photo 6" class="w-full h-32 object-cover rounded-lg mb-2" />
+                      <p class="text-gray-700 text-sm font-medium text-center">照片 6</p>
+                    </div>
+                    <div class="bg-white rounded-xl p-3 shadow-sm border border-pink-100 hover:shadow-md transition-shadow cursor-pointer" @click="openImageModal('../assets/photo7.jpg', '照片 7')">
+                      <img src="../assets/photo7.jpg" alt="Photo 7" class="w-full h-32 object-cover rounded-lg mb-2" />
+                      <p class="text-gray-700 text-sm font-medium text-center">照片 7</p>
+                    </div>
+                    <div class="bg-white rounded-xl p-3 shadow-sm border border-pink-100 hover:shadow-md transition-shadow cursor-pointer" @click="openImageModal('../assets/photo8.jpg', '照片 8')">
+                      <img src="../assets/photo8.jpg" alt="Photo 8" class="w-full h-32 object-cover rounded-lg mb-2" />
+                      <p class="text-gray-700 text-sm font-medium text-center">照片 8</p>
+                    </div>
                   </div>
                 </div>
                 
@@ -1206,48 +1086,23 @@ const nextPage = () => {
         </div>
         
         <!-- 管理员提示（仅登录用户可见） -->
-        <div v-else class="bg-gradient-to-br from-blue-50 to-purple-50 rounded-2xl shadow-lg p-8 border border-blue-200">
-          <div class="text-center mb-6">
-            <div class="text-6xl mb-4">👑</div>
-            <h3 class="text-xl font-bold text-gray-800 mb-2">Welcome Back, Admin!</h3>
-            <p class="text-gray-600">作为博主，您可以查看朋友列表和管理博客内容。</p>
-          </div>
-          <div class="grid grid-cols-3 gap-4">
-            <button 
-              class="flex flex-col items-center gap-2 p-4 bg-white/60 hover:bg-white rounded-xl transition-colors shadow-sm"
-              @click="openVisitorsModal"
-            >
-              <div class="relative">
-                <svg class="w-8 h-8 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
-                </svg>
-                <span 
-                  v-if="unreadVisitorCount > 0"
-                  class="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center"
-                >
-                  {{ unreadVisitorCount }}
-                </span>
-              </div>
-              <span class="text-sm font-medium text-gray-700">访客记录</span>
-            </button>
-            <button 
-              class="flex flex-col items-center gap-2 p-4 bg-white/60 hover:bg-white rounded-xl transition-colors shadow-sm"
-              @click="refreshFriends"
-            >
-              <svg class="w-8 h-8 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+        <div v-else class="bg-gradient-to-br from-blue-50 to-purple-50 rounded-2xl shadow-lg p-8 border border-blue-200 text-center">
+          <div class="text-6xl mb-4">👑</div>
+          <h3 class="text-xl font-bold text-gray-800 mb-2">Welcome Back, Admin!</h3>
+          <p class="text-gray-600 mb-4">作为博主，您可以查看朋友列表和管理博客内容。</p>
+          <div class="flex justify-center gap-4 text-sm text-gray-500">
+            <span class="flex items-center gap-2">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
               </svg>
-              <span class="text-sm font-medium text-gray-700">刷新朋友</span>
-            </button>
-            <button 
-              class="flex flex-col items-center gap-2 p-4 bg-white/60 hover:bg-white rounded-xl transition-colors shadow-sm"
-              @click="() => { window.location.href = '#interests' }"
-            >
-              <svg class="w-8 h-8 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              查看朋友详情
+            </span>
+            <span class="flex items-center gap-2">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
               </svg>
-              <span class="text-sm font-medium text-gray-700">查看相册</span>
-            </button>
+              发布新文章
+            </span>
           </div>
         </div>
       </div>
@@ -1335,65 +1190,6 @@ const nextPage = () => {
         >
           关闭
         </button>
-      </div>
-    </div>
-
-    <!-- 访客记录模态框 -->
-    <div v-if="showVisitorsModal" class="fixed inset-0 bg-black/60 flex items-center justify-center z-50" @click="closeVisitorsModal">
-      <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full mx-4 p-6" @click.stop>
-        <div class="flex items-center justify-between mb-6">
-          <div class="flex items-center gap-3">
-            <div class="w-10 h-10 rounded-full bg-gradient-to-br from-blue-400 to-cyan-500 flex items-center justify-center">
-              <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
-              </svg>
-            </div>
-            <div>
-              <h3 class="text-lg font-bold text-gray-800">访客记录</h3>
-              <p class="text-sm text-gray-500">共 {{ visitors.length }} 位访客</p>
-            </div>
-          </div>
-          <button @click="closeVisitorsModal" class="w-8 h-8 rounded-full hover:bg-gray-100 flex items-center justify-center transition-colors">
-            <svg class="w-5 h-5 text-gray-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M18 6L6 18M6 6l12 12"/>
-            </svg>
-          </button>
-        </div>
-        
-        <div class="max-h-80 overflow-y-auto space-y-3">
-          <div 
-            v-for="visitor in visitors" 
-            :key="visitor.id"
-            class="flex items-center gap-3 p-3 bg-gray-50 rounded-xl"
-          >
-            <div class="w-10 h-10 rounded-full bg-gradient-to-br from-purple-400 to-pink-500 flex items-center justify-center text-white font-bold text-sm">
-              {{ visitor.name.charAt(0) }}
-            </div>
-            <div class="flex-1">
-              <div class="flex items-center gap-2">
-                <span class="font-medium text-gray-800">{{ visitor.name }}</span>
-                <span 
-                  v-if="visitor.isNew"
-                  class="w-2 h-2 rounded-full bg-green-500 animate-pulse"
-                ></span>
-              </div>
-              <p class="text-xs text-gray-400">{{ visitor.visitTime }}</p>
-            </div>
-            <div class="text-green-500">
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-              </svg>
-            </div>
-          </div>
-          <div v-if="visitors.length === 0" class="text-center py-8 text-gray-400">
-            <div class="text-4xl mb-2">👥</div>
-            <p>暂无访客记录</p>
-          </div>
-        </div>
-        
-        <div class="mt-4 pt-4 border-t border-gray-100">
-          <p class="text-xs text-gray-400 text-center">访客记录会自动保存，最多显示20条</p>
-        </div>
       </div>
     </div>
   </div>
