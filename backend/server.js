@@ -2444,7 +2444,7 @@ app.use((err, req, res, next) => {
 // ===================== 启动服务器 =====================
 
 initDB().then(() => {
-  const server = app.listen(PORT, () => {
+  const server = // app.listen(已被Vercel云函数替代) => {
     console.log('╔════════════════════════════════════════════╗');
     console.log('║     🚀 服务器启动成功                       ║');
     console.log('║────────────────────────────────────────────║');
@@ -2530,3 +2530,5 @@ initDB().then(() => {
   console.error('❌ 服务器启动失败:', err);
   process.exit(1);
 });
+
+module.exports = app;
