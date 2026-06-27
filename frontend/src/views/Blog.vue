@@ -194,8 +194,8 @@ const handlePageChange = (p) => {
 
 const fmtDate = (d) => (d ? d.slice(0, 16).replace('T', ' ') : '')
 
-const goArticle = (slug) => {
-  router.push(`/article/${slug}`)
+const goArticle = (id) => {
+  router.push(`/article/${id}`)
 }
 
 const goTag = (tagName) => {
@@ -266,7 +266,7 @@ onUnmounted(() => {
             v-for="article in articles"
             :key="article.id"
             class="article-card"
-            @click="goArticle(article.slug || article.id)"
+            @click="goArticle(article.id)"
           >
             <div v-if="article.cover_image" class="card-cover">
               <img :src="article.cover_image" :alt="article.title" loading="lazy" />

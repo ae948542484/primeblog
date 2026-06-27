@@ -1185,14 +1185,20 @@ app.get('/api/posts/archive', (req, res) => {
 // 获取单篇文章
 app.get('/api/posts/:id', (req, res) => {
   try {
-    const id = req.params.id;
+    const id = parseInt(req.params.id);
     const result = db.exec('SELECT * FROM posts WHERE id = ?', [id]);
     const post = queryToObject(result);
     
     if (!post) {
       res.status(404).json({ success: false, error: '文章不存在' });
     } else {
-      res.json({ success: true, data: post });
+      let tagNames = [];
+      try {
+        tagNames = JSON.parse(post.tags || '[]');
+      } catch {
+        tagNames = [];
+      }
+      res.json({ success: true, data: { ...post, tagNames } });
     }
   } catch (err) {
     console.error('获取文章详情失败:', err);
@@ -1238,8 +1244,12 @@ app.post('/api/posts', contentModeration, (req, res) => {
 // 更新文章
 app.put('/api/posts/:id', contentModeration, (req, res) => {
   try {
-    const { id } = req.params;
+    const id = parseInt(req.params.id);
     const { title, content, summary, category, tags, status } = req.body;
+    
+    if (!title || !content || !category) {
+      return res.status(400).json({ success: false, error: '标题、内容和分类不能为空' });
+    }
     
     const now = getShanghaiTime();
     

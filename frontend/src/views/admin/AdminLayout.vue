@@ -23,7 +23,7 @@ const sidebarOpen = ref(true)
 const handleLogout = () => {
   localStorage.removeItem('admin_token')
   localStorage.removeItem('admin_user')
-  router.push('/')
+  window.location.href = '/'
 }
 
 onMounted(() => {
